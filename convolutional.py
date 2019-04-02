@@ -20,18 +20,18 @@ class Encoder(nn.Module):
     def __init__(self):
         'define four layers'
         super(Encoder, self).__init__()
-        self.fc1 = nn.Linear(784, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 128)
-        self.fc4 = nn.Linear(128, 64)
+        self.conv1 = nn.Conv2d(1, 8, 5, 2)
+        self.conv2 = nn.Conv2d(8, 16, 5, 2)
+        self.fc1 = nn.Linear(256, 96)
+        self.fc2 = nn.Linear(96, 32)
 
     def forward(self, x):
-        'five layer neural network'
+        'convolution'
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = x.view(-1, 256)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
-        return x
+        return F.relu(self.fc2(x))
 
 
 class Decoder(nn.Module):
@@ -39,17 +39,18 @@ class Decoder(nn.Module):
     def __init__(self):
         'define four layers'
         super(Decoder, self).__init__()
-        self.fc1 = nn.Linear(64, 128)
-        self.fc2 = nn.Linear(128, 256)
-        self.fc3 = nn.Linear(256, 512)
-        self.fc4 = nn.Linear(512, 784)
+        self.fc1 = nn.Linear(32, 96)
+        self.fc2 = nn.Linear(96, 256)
+        self.conv2 = nn.ConvTranspose2d(16, 8, 5, 2, output_padding=1)
+        self.conv1 = nn.ConvTranspose2d(8, 1, 5, 2, output_padding=1)
 
     def forward(self, x):
-        'five layer neural network'
+        'deconvolution'
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = F.sigmoid(self.fc4(x))
+        x = x.view(-1, 16, 4, 4)
+        x = F.relu(self.conv2(x))
+        x = F.sigmoid(self.conv1(x))
         return x
 
 
@@ -104,12 +105,13 @@ def test(model, device, test_loader, folder, epoch):
         print(f'\nTest set: Average loss: {test_loss:.4f}\n')
 
 
+
 def main():
     batch_size = 64
     test_batch_size = 100
     epochs = 10
     save_model = True
-    folder = 'autoencoder'
+    folder = 'convolutional'
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -120,7 +122,7 @@ def main():
     optimizer = optim.Adam(model.parameters())
 
     path = 'data'
-    train_loader, test_loader = get_mnist(path, use_cuda, batch_size, test_batch_size)
+    train_loader, test_loader = get_2d_mnist(path, use_cuda, batch_size, test_batch_size)
 
     for epoch in range(1, epochs + 1):
         train(model, device, train_loader, optimizer, epoch)
