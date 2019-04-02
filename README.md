@@ -1,1 +1,3 @@
-# autoencoders
+# Autoencoders
+
+MNIST
