@@ -67,14 +67,14 @@ class Autoencoder(nn.Module):
         'sample encoding from '
         std = torch.exp(0.5*logvar)
         sample = torch.randn_like(std)
-        return mean + eps*sample
+        return mean + sample*std
 
     def forward(self, x):
         'pass through encoder and decoder'
         mean, logvar = self.encoder(x)
         x = self.repameterise(mean, logvar)
         x = self.decoder(x)
-        return x
+        return x, mean, logvar
 
 
 
@@ -86,9 +86,9 @@ def variational_loss(output, data, mean, logvar):
 
 
 def train(model, device, train_loader, optimizer, epoch):
-    progress = tqdm(enumerate(train_loader), desc="", total=len(train_loader))
+    progress = tqdm(enumerate(train_loader), desc="train", total=len(train_loader))
     model.train()
-    total_loss = 0
+    train_loss = 0
     for i, (data, _) in progress:
         data = data.to(device)
         optimizer.zero_grad()
@@ -96,26 +96,25 @@ def train(model, device, train_loader, optimizer, epoch):
         loss = variational_loss(output, data, mean, logvar)
         loss.backward()
         optimizer.step()
-        log_interval = 10
-        total_loss += loss
-        progress.set_description("Loss: {:.4f}".format(total_loss/(i+1)))
+        train_loss += loss
+        progress.set_description("train loss: {:.4f}".format(train_loss/(i+1)))
 
 
 def test(model, device, test_loader, folder, epoch):
+    progress = tqdm(enumerate(test_loader), desc="test", total=len(test_loader))
     model.eval()
     test_loss = 0
     with torch.no_grad():
-        for i, (data, _) in enumerate(test_loader):
+        for i, (data, _) in progress:
             data = data.to(device)
-            output = model(data)
-            test_loss += F.binary_cross_entropy(output, data).item()
-            test_loss /= len(test_loader.dataset)
+            output, mean, logvar = model(data)
+            test_loss += variational_loss(output, data, mean, logvar)
+            progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
             if i == 0:
                 output = output.view(100, 1, 28, 28)
                 data = data.view(100, 1, 28, 28)
                 save_image(output.cpu(), f'{folder}/{epoch}.png', nrow=10)
                 save_image(data.cpu(), f'{folder}/baseline{epoch}.png', nrow=10)
-        print(f'\nTest set: Average loss: {test_loss:.4f}\n')
 
 
 
@@ -124,7 +123,7 @@ def main():
     test_batch_size = 100
     epochs = 10
     save_model = True
-    folder = 'convolutional'
+    folder = 'variational'
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -140,6 +139,7 @@ def main():
     for epoch in range(1, epochs + 1):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader, folder, epoch)
+        print("")
         if save_model:
             torch.save(model.state_dict(), f"{folder}/{epoch}.pt")
 

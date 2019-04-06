@@ -100,7 +100,6 @@ def test(model, device, test_loader, folder, epoch):
                 data = data.view(100, 1, 28, 28)
                 save_image(output.cpu(), f'{folder}/{epoch}.png', nrow=10)
                 save_image(data.cpu(), f'{folder}/baseline{epoch}.png', nrow=10)
-        print("")
 
 
 
@@ -125,6 +124,7 @@ def main():
     for epoch in range(1, epochs + 1):
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader, folder, epoch)
+        print("")
         if save_model:
             torch.save(model.state_dict(), f"{folder}/{epoch}.pt")
 
