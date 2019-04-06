@@ -75,7 +75,6 @@ def train(model, device, train_loader, optimizer, epoch):
     model.train()
     total_loss = 0
     for i, (data, _) in progress:
-        data = data.view(data.size(0), -1)
         data = data.to(device)
         optimizer.zero_grad()
         output = model(data)
@@ -92,7 +91,6 @@ def test(model, device, test_loader, folder, epoch):
     test_loss = 0
     with torch.no_grad():
         for i, (data, _) in enumerate(test_loader):
-            data = data.view(data.size(0), -1)
             data = data.to(device)
             output = model(data)
             test_loss += F.binary_cross_entropy(output, data, reduction='sum').item()
@@ -122,7 +120,7 @@ def main():
     optimizer = optim.Adam(model.parameters())
 
     path = 'data'
-    train_loader, test_loader = get_2d_mnist(path, use_cuda, batch_size, test_batch_size)
+    train_loader, test_loader = get_mnist(path, use_cuda, batch_size, test_batch_size)
 
     for epoch in range(1, epochs + 1):
         train(model, device, train_loader, optimizer, epoch)
