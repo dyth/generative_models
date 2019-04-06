@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import os
+import numpy as np
 from tqdm.autonotebook import tqdm
 from torchvision.utils import save_image
 
@@ -23,8 +24,8 @@ class Encoder(nn.Module):
         self.conv1 = nn.Conv2d(1, 8, 5, 2)
         self.conv2 = nn.Conv2d(8, 16, 5, 2)
         self.fc1 = nn.Linear(256, 96)
-        self.fc2a = nn.Linear(96, 32)
-        self.fc2b = nn.Linear(96, 32)
+        self.mean = nn.Linear(96, 32)
+        self.logvar = nn.Linear(96, 32)
 
     def forward(self, x):
         'convolution'
@@ -32,7 +33,7 @@ class Encoder(nn.Module):
         x = F.relu(self.conv2(x))
         x = x.view(-1, 256)
         x = F.relu(self.fc1(x))
-        return F.relu(self.fc2a(x)), F.relu(self.fc2b(x))
+        return F.relu(self.mean(x)), F.relu(self.logvar(x))
 
 
 class Decoder(nn.Module):
@@ -64,10 +65,14 @@ class Autoencoder(nn.Module):
         self.decoder = Decoder()
 
     def repameterise(self, mean, logvar):
-        'sample encoding from '
-        std = torch.exp(0.5*logvar)
-        sample = torch.randn_like(std)
-        return mean + sample*std
+        'sample encoding from gaussian of mean and logvar'
+        if self.training:
+            std = torch.exp(0.5*logvar)
+            eps = torch.randn_like(std)
+            sample = mean + eps*std
+            return sample
+        else:
+            return mean
 
     def forward(self, x):
         'pass through encoder and decoder'
@@ -80,12 +85,12 @@ class Autoencoder(nn.Module):
 
 def variational_loss(output, data, mean, logvar):
     'sum reconstruction and divergence losses'
-    reconstruction = F.binary_cross_entropy(output, data)
+    reconstruction = F.binary_cross_entropy(output, data, reduction='sum')
     divergence = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-    return reconstruction + divergence
+    return reconstruction + divergence, reconstruction
 
 
-def train(model, device, train_loader, optimizer, epoch):
+def train(model, device, train_loader, optimizer, epoch, batch_size):
     progress = tqdm(enumerate(train_loader), desc="train", total=len(train_loader))
     model.train()
     train_loss = 0
@@ -93,14 +98,14 @@ def train(model, device, train_loader, optimizer, epoch):
         data = data.to(device)
         optimizer.zero_grad()
         output, mean, logvar = model(data)
-        loss = variational_loss(output, data, mean, logvar)
+        loss, reconstruction = variational_loss(output, data, mean, logvar)
         loss.backward()
         optimizer.step()
-        train_loss += loss
+        train_loss += reconstruction / np.prod([*data.shape])
         progress.set_description("train loss: {:.4f}".format(train_loss/(i+1)))
 
 
-def test(model, device, test_loader, folder, epoch):
+def test(model, device, test_loader, folder, epoch, batch_size):
     progress = tqdm(enumerate(test_loader), desc="test", total=len(test_loader))
     model.eval()
     test_loss = 0
@@ -108,7 +113,8 @@ def test(model, device, test_loader, folder, epoch):
         for i, (data, _) in progress:
             data = data.to(device)
             output, mean, logvar = model(data)
-            test_loss += variational_loss(output, data, mean, logvar)
+            loss, reconstruction = variational_loss(output, data, mean, logvar)
+            test_loss += reconstruction / np.prod([*data.shape])
             progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
             if i == 0:
                 output = output.view(100, 1, 28, 28)
@@ -137,8 +143,8 @@ def main():
     train_loader, test_loader = get_mnist(path, use_cuda, batch_size, test_batch_size)
 
     for epoch in range(1, epochs + 1):
-        train(model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader, folder, epoch)
+        train(model, device, train_loader, optimizer, epoch, batch_size)
+        test(model, device, test_loader, folder, epoch, batch_size)
         print("")
         if save_model:
             torch.save(model.state_dict(), f"{folder}/{epoch}.pt")
