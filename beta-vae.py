@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-train a convolutional encoder and decoder with variational loss
+train a disentangled convolutional encoder and decoder with variational loss
 """
 import torch
 import torch.nn as nn
@@ -12,66 +12,19 @@ from tqdm.autonotebook import tqdm
 from torchvision.utils import save_image
 
 from dataloaders import *
-from convolutional import Decoder
+from variational import Encoder, Decoder, Autoencoder
 
 torch.manual_seed(9001)
 
 
-class Encoder(nn.Module):
-
-    def __init__(self):
-        'define four layers'
-        super(Encoder, self).__init__()
-        self.conv1 = nn.Conv2d(1, 8, 5, 2)
-        self.conv2 = nn.Conv2d(8, 16, 5, 2)
-        self.fc1 = nn.Linear(256, 96)
-        self.mean = nn.Linear(96, 32)
-        self.logvar = nn.Linear(96, 32)
-
-    def forward(self, x):
-        'convolution'
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = x.view(-1, 256)
-        x = F.relu(self.fc1(x))
-        return F.relu(self.mean(x)), F.relu(self.logvar(x))
-
-
-class Autoencoder(nn.Module):
-
-    def __init__(self):
-        'define encoder and decoder'
-        super(Autoencoder, self).__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
-
-    def repameterise(self, mean, logvar):
-        'sample encoding from gaussian of mean and logvar'
-        if self.training:
-            std = torch.exp(0.5*logvar)
-            eps = torch.randn_like(std)
-            sample = mean + eps*std
-            return sample
-        else:
-            return mean
-
-    def forward(self, x):
-        'pass through encoder and decoder'
-        mean, logvar = self.encoder(x)
-        x = self.repameterise(mean, logvar)
-        x = self.decoder(x)
-        return x, mean, logvar
-
-
-
-def variational_loss(output, data, mean, logvar):
+def variational_loss(output, data, mean, logvar, beta):
     'sum reconstruction and divergence losses'
     reconstruction = F.binary_cross_entropy(output, data, reduction='sum')
     divergence = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
-    return reconstruction + divergence, reconstruction
+    return reconstruction + beta * divergence, reconstruction
 
 
-def train(model, device, train_loader, optimizer, epoch):
+def train(model, device, train_loader, optimizer, epoch, beta):
     progress = tqdm(enumerate(train_loader), desc="train", total=len(train_loader))
     model.train()
     train_loss = 0
@@ -79,14 +32,14 @@ def train(model, device, train_loader, optimizer, epoch):
         data = data.to(device)
         optimizer.zero_grad()
         output, mean, logvar = model(data)
-        loss, reconstruction = variational_loss(output, data, mean, logvar)
+        loss, reconstruction = variational_loss(output, data, mean, logvar, beta)
         loss.backward()
         optimizer.step()
         train_loss += reconstruction / np.prod([*data.shape])
         progress.set_description("train loss: {:.4f}".format(train_loss/(i+1)))
 
 
-def test(model, device, test_loader, folder, epoch):
+def test(model, device, test_loader, folder, epoch, beta):
     progress = tqdm(enumerate(test_loader), desc="test", total=len(test_loader))
     model.eval()
     test_loss = 0
@@ -94,7 +47,7 @@ def test(model, device, test_loader, folder, epoch):
         for i, (data, _) in progress:
             data = data.to(device)
             output, mean, logvar = model(data)
-            loss, reconstruction = variational_loss(output, data, mean, logvar)
+            loss, reconstruction = variational_loss(output, data, mean, logvar, beta)
             test_loss += reconstruction / np.prod([*data.shape])
             progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
             if i == 0:
@@ -106,11 +59,12 @@ def test(model, device, test_loader, folder, epoch):
 
 
 def main():
+    beta = 150.0
     batch_size = 64
     test_batch_size = 100
     epochs = 10
     save_model = True
-    folder = 'variational'
+    folder = 'beta-vae'
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -124,8 +78,8 @@ def main():
     train_loader, test_loader = get_mnist(path, use_cuda, batch_size, test_batch_size)
 
     for epoch in range(1, epochs + 1):
-        train(model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader, folder, epoch)
+        train(model, device, train_loader, optimizer, epoch, beta)
+        test(model, device, test_loader, folder, epoch, beta)
         print("")
         if save_model:
             torch.save(model.state_dict(), f"{folder}/{epoch}.pt")
