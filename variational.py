@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-train a feedforward encoder and decoder
+train a convolutional encoder and decoder with variational loss
 """
 import torch
 import torch.nn as nn
@@ -20,18 +20,19 @@ class Encoder(nn.Module):
     def __init__(self):
         'define four layers'
         super(Encoder, self).__init__()
-        self.fc1 = nn.Linear(784, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 128)
-        self.fc4 = nn.Linear(128, 64)
+        self.conv1 = nn.Conv2d(1, 8, 5, 2)
+        self.conv2 = nn.Conv2d(8, 16, 5, 2)
+        self.fc1 = nn.Linear(256, 96)
+        self.fc2a = nn.Linear(96, 32)
+        self.fc2b = nn.Linear(96, 32)
 
     def forward(self, x):
-        'five layer neural network'
+        'convolution'
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = x.view(-1, 256)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = F.relu(self.fc4(x))
-        return x
+        return F.relu(self.fc2a(x)), F.relu(self.fc2b(x))
 
 
 class Decoder(nn.Module):
@@ -39,17 +40,18 @@ class Decoder(nn.Module):
     def __init__(self):
         'define four layers'
         super(Decoder, self).__init__()
-        self.fc1 = nn.Linear(64, 128)
-        self.fc2 = nn.Linear(128, 256)
-        self.fc3 = nn.Linear(256, 512)
-        self.fc4 = nn.Linear(512, 784)
+        self.fc1 = nn.Linear(32, 96)
+        self.fc2 = nn.Linear(96, 256)
+        self.conv2 = nn.ConvTranspose2d(16, 8, 5, 2, output_padding=1)
+        self.conv1 = nn.ConvTranspose2d(8, 1, 5, 2, output_padding=1)
 
     def forward(self, x):
-        'five layer neural network'
+        'deconvolution'
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        x = torch.sigmoid(self.fc4(x))
+        x = x.view(-1, 16, 4, 4)
+        x = F.relu(self.conv2(x))
+        x = torch.sigmoid(self.conv1(x))
         return x
 
 
@@ -61,47 +63,59 @@ class Autoencoder(nn.Module):
         self.encoder = Encoder()
         self.decoder = Decoder()
 
+    def repameterise(self, mean, logvar):
+        'sample encoding from '
+        std = torch.exp(0.5*logvar)
+        sample = torch.randn_like(std)
+        return mean + eps*sample
+
     def forward(self, x):
         'pass through encoder and decoder'
-        x = self.encoder(x)
+        mean, logvar = self.encoder(x)
+        x = self.repameterise(mean, logvar)
         x = self.decoder(x)
         return x
 
 
 
+def variational_loss(output, data, mean, logvar):
+    'sum reconstruction and divergence losses'
+    reconstruction = F.binary_cross_entropy(output, data)
+    divergence = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+    return reconstruction + divergence
+
+
 def train(model, device, train_loader, optimizer, epoch):
-    progress = tqdm(enumerate(train_loader), desc="train", total=len(train_loader))
+    progress = tqdm(enumerate(train_loader), desc="", total=len(train_loader))
     model.train()
-    train_loss = 0
+    total_loss = 0
     for i, (data, _) in progress:
-        data = data.view(data.size(0), -1)
         data = data.to(device)
         optimizer.zero_grad()
-        output = model(data)
-        loss = F.binary_cross_entropy(output, data)
+        output, mean, logvar = model(data)
+        loss = variational_loss(output, data, mean, logvar)
         loss.backward()
         optimizer.step()
-        train_loss += loss
-        progress.set_description("train loss: {:.4f}".format(train_loss/(i+1)))
+        log_interval = 10
+        total_loss += loss
+        progress.set_description("Loss: {:.4f}".format(total_loss/(i+1)))
 
 
 def test(model, device, test_loader, folder, epoch):
-    progress = tqdm(enumerate(test_loader), desc="test", total=len(test_loader))
     model.eval()
     test_loss = 0
     with torch.no_grad():
-        for i, (data, _) in progress:
-            data = data.view(data.size(0), -1)
+        for i, (data, _) in enumerate(test_loader):
             data = data.to(device)
             output = model(data)
-            test_loss += F.binary_cross_entropy(output, data)
-            progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
+            test_loss += F.binary_cross_entropy(output, data).item()
+            test_loss /= len(test_loader.dataset)
             if i == 0:
                 output = output.view(100, 1, 28, 28)
                 data = data.view(100, 1, 28, 28)
                 save_image(output.cpu(), f'{folder}/{epoch}.png', nrow=10)
                 save_image(data.cpu(), f'{folder}/baseline{epoch}.png', nrow=10)
-        print("")
+        print(f'\nTest set: Average loss: {test_loss:.4f}\n')
 
 
 
@@ -110,7 +124,7 @@ def main():
     test_batch_size = 100
     epochs = 10
     save_model = True
-    folder = 'feedforward'
+    folder = 'convolutional'
 
     if not os.path.exists(folder):
         os.makedirs(folder)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-train an encoder and a decoder
+train a convolutional encoder and decoder
 """
 import torch
 import torch.nn as nn
@@ -50,7 +50,7 @@ class Decoder(nn.Module):
         x = F.relu(self.fc2(x))
         x = x.view(-1, 16, 4, 4)
         x = F.relu(self.conv2(x))
-        x = F.sigmoid(self.conv1(x))
+        x = torch.sigmoid(self.conv1(x))
         return x
 
 
@@ -71,9 +71,9 @@ class Autoencoder(nn.Module):
 
 
 def train(model, device, train_loader, optimizer, epoch):
-    progress = tqdm(enumerate(train_loader), desc="", total=len(train_loader))
+    progress = tqdm(enumerate(train_loader), desc="train", total=len(train_loader))
     model.train()
-    total_loss = 0
+    train_loss = 0
     for i, (data, _) in progress:
         data = data.to(device)
         optimizer.zero_grad()
@@ -81,26 +81,26 @@ def train(model, device, train_loader, optimizer, epoch):
         loss = F.binary_cross_entropy(output, data)
         loss.backward()
         optimizer.step()
-        log_interval = 10
-        total_loss += loss
-        progress.set_description("Loss: {:.4f}".format(total_loss/(i+1)))
+        train_loss += loss
+        progress.set_description("train loss: {:.4f}".format(train_loss/(i+1)))
 
 
 def test(model, device, test_loader, folder, epoch):
+    progress = tqdm(enumerate(test_loader), desc="test", total=len(test_loader))
     model.eval()
     test_loss = 0
     with torch.no_grad():
-        for i, (data, _) in enumerate(test_loader):
+        for i, (data, _) in progress:
             data = data.to(device)
             output = model(data)
-            test_loss += F.binary_cross_entropy(output, data, reduction='sum').item()
-            test_loss /= len(test_loader.dataset)
+            test_loss += F.binary_cross_entropy(output, data)
+            progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
             if i == 0:
                 output = output.view(100, 1, 28, 28)
                 data = data.view(100, 1, 28, 28)
                 save_image(output.cpu(), f'{folder}/{epoch}.png', nrow=10)
                 save_image(data.cpu(), f'{folder}/baseline{epoch}.png', nrow=10)
-        print(f'\nTest set: Average loss: {test_loss:.4f}\n')
+        print("")
 
 
 
