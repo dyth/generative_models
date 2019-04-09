@@ -104,7 +104,7 @@ venv.bak/
 .mypy_cache/
 
 # pytorch
-data*
+data/*
 *.pt
 __pycache__*
 *.png
