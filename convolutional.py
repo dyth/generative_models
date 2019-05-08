@@ -94,7 +94,7 @@ def test(model, device, test_loader, folder, epoch):
             data = data.to(device)
             output = model(data)
             test_loss += F.binary_cross_entropy(output, data)
-            progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
+            # progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
             if i == 0:
                 output = output.view(100, 1, 28, 28)
                 data = data.view(100, 1, 28, 28)
