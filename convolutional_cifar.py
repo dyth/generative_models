@@ -22,17 +22,29 @@ class Encoder(nn.Module):
         'define four layers'
         super(Encoder, self).__init__()
         self.conv1 = nn.Conv2d(3, 8, 3, 2)
+        self.conv1_bn = nn.BatchNorm2d(8)
         self.conv2 = nn.Conv2d(8, 16, 3, 2)
+        self.conv2_bn = nn.BatchNorm2d(16)
         self.conv3 = nn.Conv2d(16, 32, 3, 2)
+        self.conv3_bn = nn.BatchNorm2d(32)
         self.conv4 = nn.Conv2d(32, 64, 3, 2)
+        self.conv4_bn = nn.BatchNorm2d(64)
 
     def forward(self, x):
         'convolution'
         # output 64, 1, 1
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
+        x = self.conv1(x)
+        x = self.conv1_bn(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = self.conv2_bn(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = self.conv3_bn(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = self.conv4_bn(x)
+        x = F.relu(x)
         return x
 
 
@@ -42,16 +54,112 @@ class Decoder(nn.Module):
         'define four layers'
         super(Decoder, self).__init__()
         self.conv4 = nn.ConvTranspose2d(64, 32, 3, 2)
+        self.conv4_bn = nn.BatchNorm2d(32)
         self.conv3 = nn.ConvTranspose2d(32, 16, 3, 2)
+        self.conv3_bn = nn.BatchNorm2d(16)
         self.conv2 = nn.ConvTranspose2d(16, 8, 3, 2)
+        self.conv2_bn = nn.BatchNorm2d(8)
         self.conv1 = nn.ConvTranspose2d(8, 3, 3, 2, output_padding=1)
+        self.conv1_bn = nn.BatchNorm2d(3)
 
     def forward(self, x):
         'deconvolution'
-        x = F.relu(self.conv4(x))
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv2(x))
-        x = torch.tanh(self.conv1(x))
+        x = self.conv4(x)
+        x = self.conv4_bn(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = self.conv3_bn(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = self.conv2_bn(x)
+        x = F.relu(x)
+        x = self.conv1(x)
+        x = self.conv1_bn(x)
+        x = torch.tanh(x)
+        return x
+
+
+
+class Encoder2(nn.Module):
+
+    def __init__(self):
+        'define four layers'
+        super(Encoder2, self).__init__()
+        self.conv1 = nn.Conv2d(3, 8, 3, 1)
+        self.conv1_bn = nn.BatchNorm2d(8)
+        self.conv2 = nn.Conv2d(8, 16, 3, 2)
+        self.conv2_bn = nn.BatchNorm2d(16)
+        self.conv3 = nn.Conv2d(16, 32, 3, 1)
+        self.conv3_bn = nn.BatchNorm2d(32)
+        self.conv4 = nn.Conv2d(32, 64, 3, 2)
+        self.conv4_bn = nn.BatchNorm2d(64)
+        self.conv5 = nn.Conv2d(64, 128, 3, 1)
+        self.conv5_bn = nn.BatchNorm2d(128)
+        self.conv6 = nn.Conv2d(128, 256, 3, 2)
+        self.conv6_bn = nn.BatchNorm2d(256)
+
+    def forward(self, x):
+        'convolution'
+        # output 64, 1, 1
+        x = self.conv1(x)
+        x = self.conv1_bn(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = self.conv2_bn(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = self.conv3_bn(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = self.conv4_bn(x)
+        x = F.relu(x)
+        x = self.conv5(x)
+        x = self.conv5_bn(x)
+        x = F.relu(x)
+        x = self.conv6(x)
+        x = self.conv6_bn(x)
+        x = F.relu(x)
+        return x
+
+
+class Decoder2(nn.Module):
+
+    def __init__(self):
+        'define four layers'
+        super(Decoder2, self).__init__()
+        self.conv6 = nn.ConvTranspose2d(256, 128, 3, 2)
+        self.conv6_bn = nn.BatchNorm2d(128)
+        self.conv5 = nn.ConvTranspose2d(128, 64, 3, 1)
+        self.conv5_bn = nn.BatchNorm2d(64)
+        self.conv4 = nn.ConvTranspose2d(64, 32, 3, 2, output_padding=1)
+        self.conv4_bn = nn.BatchNorm2d(32)
+        self.conv3 = nn.ConvTranspose2d(32, 16, 3, 1)
+        self.conv3_bn = nn.BatchNorm2d(16)
+        self.conv2 = nn.ConvTranspose2d(16, 8, 3, 2, output_padding=1)
+        self.conv2_bn = nn.BatchNorm2d(8)
+        self.conv1 = nn.ConvTranspose2d(8, 3, 3, 1)
+        self.conv1_bn = nn.BatchNorm2d(3)
+
+    def forward(self, x):
+        'deconvolution'
+        x = self.conv6(x)
+        x = self.conv6_bn(x)
+        x = F.relu(x)
+        x = self.conv5(x)
+        x = self.conv5_bn(x)
+        x = F.relu(x)
+        x = self.conv4(x)
+        x = self.conv4_bn(x)
+        x = F.relu(x)
+        x = self.conv3(x)
+        x = self.conv3_bn(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = self.conv2_bn(x)
+        x = F.relu(x)
+        x = self.conv1(x)
+        x = self.conv1_bn(x)
+        x = torch.tanh(x)
         return x
 
 
@@ -113,6 +221,38 @@ class Autoencoder(nn.Module):
         return x
 
 
+class SuperAutoencoder(nn.Module):
+
+    def __init__(self):
+        'define encoder and decoder'
+        super(Autoencoder, self).__init__()
+        normalization_layer = torch.nn.BatchNorm2d
+        self.normalization_layer_factory = parts.NormalizationLayerFactory(normalization_layer)
+        self.encoder = SuperEncoder(32, self.normalization_layer_factory)
+        self.decoder = SuperDecoder(32, self.normalization_layer_factory)
+
+    def forward(self, x):
+        'pass through encoder and decoder'
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+
+class Autoencoder2(nn.Module):
+
+    def __init__(self):
+        'define encoder and decoder'
+        super(Autoencoder, self).__init__()
+        self.encoder = Encoder2()
+        self.decoder = Decoder2()
+
+    def forward(self, x):
+        'pass through encoder and decoder'
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+
 
 def train(model, device, train_loader, optimizer, epoch):
     progress = tqdm(enumerate(train_loader), desc="train", total=len(train_loader))
@@ -150,7 +290,7 @@ def test(model, device, test_loader, folder, epoch):
 def main():
     batch_size = 128
     test_batch_size = 100
-    epochs = 20
+    epochs = 30
     save_model = True
     folder = 'convolutional_cifar'
 
@@ -166,6 +306,7 @@ def main():
     train_loader, test_loader = get_cifar10(path, use_cuda, batch_size, test_batch_size)
 
     for epoch in range(1, epochs + 1):
+        print(epoch)
         train(model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader, folder, epoch)
         print("")
