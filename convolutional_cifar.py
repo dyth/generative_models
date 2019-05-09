@@ -44,7 +44,6 @@ class Encoder(nn.Module):
         x = F.relu(x)
         x = self.conv4(x)
         x = self.conv4_bn(x)
-        x = F.relu(x)
         return x
 
 
@@ -209,10 +208,6 @@ class Autoencoder(nn.Module):
         super(Autoencoder, self).__init__()
         self.encoder = Encoder()
         self.decoder = Decoder()
-        # normalization_layer = torch.nn.BatchNorm2d
-        # self.normalization_layer_factory = parts.NormalizationLayerFactory(normalization_layer)
-        # self.encoder = SuperEncoder(32, self.normalization_layer_factory)
-        # self.decoder = SuperDecoder(32, self.normalization_layer_factory)
 
     def forward(self, x):
         'pass through encoder and decoder'
@@ -225,7 +220,7 @@ class SuperAutoencoder(nn.Module):
 
     def __init__(self):
         'define encoder and decoder'
-        super(Autoencoder, self).__init__()
+        super(SuperAutoencoder, self).__init__()
         normalization_layer = torch.nn.BatchNorm2d
         self.normalization_layer_factory = parts.NormalizationLayerFactory(normalization_layer)
         self.encoder = SuperEncoder(32, self.normalization_layer_factory)
@@ -242,7 +237,7 @@ class Autoencoder2(nn.Module):
 
     def __init__(self):
         'define encoder and decoder'
-        super(Autoencoder, self).__init__()
+        super(Autoencoder2, self).__init__()
         self.encoder = Encoder2()
         self.decoder = Decoder2()
 
@@ -288,18 +283,18 @@ def test(model, device, test_loader, folder, epoch):
 
 
 def main():
-    batch_size = 128
+    batch_size = 64
     test_batch_size = 100
-    epochs = 30
+    epochs = 100
     save_model = True
-    folder = 'convolutional_cifar'
+    folder = 'convolutional_cifar_2_instance'
 
     if not os.path.exists(folder):
         os.makedirs(folder)
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
-    model = Autoencoder().to(device)
+    model = Autoencoder2().to(device)
     optimizer = optim.Adam(model.parameters())
 
     path = 'data'
