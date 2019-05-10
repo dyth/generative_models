@@ -23,16 +23,29 @@ class BasicBlock(torch.nn.Module):
         super(BasicBlock, self).__init__()
         self.residual = torch.nn.Sequential(
             torch.nn.Conv2d(filters, filters, 3, 1, padding=1),
-            torch.nn.ReLU(),
+            torch.nn.PReLU(),
             torch.nn.BatchNorm2d(filters),
             torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
-            torch.nn.ReLU(),
+            torch.nn.PReLU(),
             torch.nn.BatchNorm2d(filters)
         )
 
     def forward(self, x):
         'output = residual + skip'
         return x + self.residual(x)
+
+
+class ELU_BatchNorm2d(torch.nn.Module):
+
+    def __init__(self, filters=64):
+        super(ELU_BatchNorm2d, self).__init__()
+        self.actnorm = torch.nn.Sequential(
+            torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(filters)
+        )
+
+    def forward(self, x):
+        return self.actnorm(x)
 
 
 
@@ -43,32 +56,23 @@ class Encoder3(torch.nn.Module):
         super(Encoder3, self).__init__()
         self.encoder = torch.nn.Sequential(
             torch.nn.Conv2d(3, 64, 3, 1, padding=1),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+            ELU_BatchNorm2d(64),
             BasicBlock(),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+            ELU_BatchNorm2d(64),
             torch.nn.Conv2d(64, 64, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+            ELU_BatchNorm2d(64),
             torch.nn.Conv2d(64, 128, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
+            ELU_BatchNorm2d(128),
             torch.nn.Conv2d(128, 128, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
+            ELU_BatchNorm2d(128),
             torch.nn.Conv2d(128, 128, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
+            ELU_BatchNorm2d(128),
             torch.nn.Conv2d(128, 256, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256),
+            ELU_BatchNorm2d(256),
             torch.nn.Conv2d(256, 256, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256),
+            ELU_BatchNorm2d(256),
             torch.nn.Conv2d(256, 256, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256)
+            ELU_BatchNorm2d(256),
         )
 
     def forward(self, x):
@@ -82,29 +86,21 @@ class Decoder3(torch.nn.Module):
         super(Decoder3, self).__init__()
         self.decoder = torch.nn.Sequential(
             torch.nn.ConvTranspose2d(256, 256, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256),
+            ELU_BatchNorm2d(256),
             torch.nn.Conv2d(256, 256, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256),
+            ELU_BatchNorm2d(256),
             torch.nn.ConvTranspose2d(256, 128, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
+            ELU_BatchNorm2d(128),
             torch.nn.Conv2d(128, 128, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
+            ELU_BatchNorm2d(128),
             torch.nn.ConvTranspose2d(128, 128, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
+            ELU_BatchNorm2d(128),
             torch.nn.Conv2d(128, 64, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+            ELU_BatchNorm2d(64),
             torch.nn.ConvTranspose2d(64, 64, 3, 2, output_padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+            ELU_BatchNorm2d(64),
             BasicBlock(),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+            ELU_BatchNorm2d(64),
             torch.nn.Conv2d(64, 3, 3, 1, padding=1, bias=False),
             torch.nn.Tanh()
         )
