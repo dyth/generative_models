@@ -29,7 +29,7 @@ class BasicBlock(torch.nn.Module):
             torch.nn.BatchNorm2d(filters)
         )
 
-    def forward(x):
+    def forward(self, x):
         'output = residual + skip'
         return x + self.residual(x)
 
