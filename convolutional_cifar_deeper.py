@@ -16,71 +16,96 @@ from dataloaders import *
 torch.manual_seed(9001)
 
 
-class Encoder3(nn.Module):
+class BasicBlock(torch.nn.Module):
+
+    def __init__(self, filters=64):
+        'residual basic block'
+        super(BasicBlock, self).__init__()
+        self.residual = torch.nn.Sequential(
+            torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
+            torch.nn.BatchNorm2d(filters),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
+            torch.nn.BatchNorm2d(filters)
+        )
+
+    def forward(x):
+        'output = residual + skip'
+        return x + self.residual(x)
+
+
+
+class Encoder3(torch.nn.Module):
 
     def __init__(self):
         'define four layers'
         super(Encoder3, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(3, 16, 3, 1, padding=1),
-            nn.ELU(),
-            nn.BatchNorm2d(16),
-            nn.Conv2d(16, 16, 3, 2, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(16),
-            nn.Conv2d(16, 64, 3, 1, padding=1, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(64),
-            nn.Conv2d(64, 64, 3, 2, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(64),
-            nn.Conv2d(64, 64, 3, 1, padding=1, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(64),
-            nn.Conv2d(64, 256, 3, 2, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(256),
-            nn.Conv2d(256, 256, 3, 1, padding=1, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(256),
-            nn.Conv2d(256, 256, 3, 2, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(256)
+        self.encoder = torch.nn.Sequential(
+            torch.nn.Conv2d(3, 64, 3, 1, padding=1),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(64),
+            BasicBlock(),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(64),
+            torch.nn.Conv2d(64, 64, 3, 2, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(64),
+            torch.nn.Conv2d(64, 128, 3, 1, padding=1, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.Conv2d(128, 128, 3, 2, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.Conv2d(128, 128, 3, 1, padding=1, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.Conv2d(128, 256, 3, 2, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(256),
+            torch.nn.Conv2d(256, 256, 3, 1, padding=1, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(256),
+            torch.nn.Conv2d(256, 256, 3, 2, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(256)
         )
 
     def forward(self, x):
         return self.encoder(x)
 
 
-class Decoder3(nn.Module):
+class Decoder3(torch.nn.Module):
 
     def __init__(self):
         'define four layers'
         super(Decoder3, self).__init__()
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(256, 256, 3, 2, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(256),
-            nn.Conv2d(256, 256, 3, 1, padding=1, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(256),
-            nn.ConvTranspose2d(256, 64, 3, 2, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(64),
-            nn.Conv2d(64, 64, 3, 1, padding=1, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(64),
-            nn.ConvTranspose2d(64, 64, 3, 2, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(64),
-            nn.Conv2d(64, 16, 3, 1, padding=1, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(16),
-            nn.ConvTranspose2d(16, 16, 3, 2, output_padding=1, bias=False),
-            nn.ELU(),
-            nn.BatchNorm2d(16),
-            nn.Conv2d(16, 3, 3, 1, padding=1, bias=False),
-            nn.Tanh()
+        self.decoder = torch.nn.Sequential(
+            torch.nn.ConvTranspose2d(256, 256, 3, 2, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(256),
+            torch.nn.Conv2d(256, 256, 3, 1, padding=1, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(256),
+            torch.nn.ConvTranspose2d(256, 128, 3, 2, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.Conv2d(128, 128, 3, 1, padding=1, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.ConvTranspose2d(128, 128, 3, 2, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.Conv2d(128, 64, 3, 1, padding=1, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(64),
+            torch.nn.ConvTranspose2d(64, 64, 3, 2, output_padding=1, bias=False),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(64),
+            BasicBlock(),
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(64),
+            torch.nn.Conv2d(64, 3, 3, 1, padding=1, bias=False),
+            torch.nn.Tanh()
         )
 
     def forward(self, x):
@@ -127,7 +152,7 @@ def test(model, device, test_loader, folder, epoch):
             data = data.to(device)
             output = model(data)
             test_loss += F.mse_loss(output, data)
-            # progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
+            progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
             if i == 0:
                 output = output.view(100, 3, 32, 32)
                 data = data.view(100, 3, 32, 32)
@@ -139,9 +164,9 @@ def test(model, device, test_loader, folder, epoch):
 def main():
     batch_size = 64
     test_batch_size = 100
-    epochs = 10
+    epochs = 20
     save_model = True
-    folder = 'convolutional_cifar_no_bn'
+    folder = 'convolutional_cifar_deeper'
 
     if not os.path.exists(folder):
         os.makedirs(folder)
