@@ -35,76 +35,78 @@ class BasicBlock(torch.nn.Module):
         return x + self.residual(x)
 
 
+class ELU_BatchNorm2d(torch.nn.Module):
 
-class Encoder3(torch.nn.Module):
+    def __init__(self, filters=64):
+        super(ELU_BatchNorm2d, self).__init__()
+        self.actnorm = torch.nn.Sequential(
+            torch.nn.ELU(),
+            torch.nn.BatchNorm2d(filters)
+        )
+
+    def forward(self, x):
+        return self.actnorm(x)
+
+
+class ResidualEncoder(torch.nn.Module):
 
     def __init__(self):
         'define four layers'
-        super(Encoder3, self).__init__()
+        super(ResidualEncoder, self).__init__()
         self.encoder = torch.nn.Sequential(
             torch.nn.Conv2d(3, 64, 3, 1, padding=1),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
             BasicBlock(),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+            ELU_BatchNorm2d(64),
+
             torch.nn.Conv2d(64, 64, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
-            torch.nn.Conv2d(64, 128, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
-            torch.nn.Conv2d(128, 128, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
-            torch.nn.Conv2d(128, 128, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
+            ELU_BatchNorm2d(64),
+            BasicBlock(64),
+            ELU_BatchNorm2d(64),
+
+            torch.nn.Conv2d(64, 128, 3, 2, bias=False),
+            ELU_BatchNorm2d(128),
+            BasicBlock(128),
+            ELU_BatchNorm2d(128),
+
             torch.nn.Conv2d(128, 256, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256),
-            torch.nn.Conv2d(256, 256, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256),
+            ELU_BatchNorm2d(256),
+            BasicBlock(256),
+            ELU_BatchNorm2d(256),
+
             torch.nn.Conv2d(256, 256, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256)
+            ELU_BatchNorm2d(256),
         )
 
     def forward(self, x):
         return self.encoder(x)
 
 
-class Decoder3(torch.nn.Module):
+class ResidualDecoder(torch.nn.Module):
 
     def __init__(self):
         'define four layers'
-        super(Decoder3, self).__init__()
+        super(ResidualDecoder, self).__init__()
         self.decoder = torch.nn.Sequential(
             torch.nn.ConvTranspose2d(256, 256, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256),
-            torch.nn.Conv2d(256, 256, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(256),
+
+            ELU_BatchNorm2d(256),
+            BasicBlock(256),
+            ELU_BatchNorm2d(256),
             torch.nn.ConvTranspose2d(256, 128, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
-            torch.nn.Conv2d(128, 128, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
-            torch.nn.ConvTranspose2d(128, 128, 3, 2, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(128),
-            torch.nn.Conv2d(128, 64, 3, 1, padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+
+            ELU_BatchNorm2d(128),
+            BasicBlock(128),
+            ELU_BatchNorm2d(128),
+            torch.nn.ConvTranspose2d(128, 64, 3, 2, bias=False),
+
+            ELU_BatchNorm2d(64),
+            BasicBlock(64),
+            ELU_BatchNorm2d(64),
             torch.nn.ConvTranspose2d(64, 64, 3, 2, output_padding=1, bias=False),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+
+            ELU_BatchNorm2d(64),
             BasicBlock(),
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(64),
+            ELU_BatchNorm2d(64),
             torch.nn.Conv2d(64, 3, 3, 1, padding=1, bias=False),
             torch.nn.Tanh()
         )
@@ -118,8 +120,8 @@ class Autoencoder(nn.Module):
     def __init__(self):
         'define encoder and decoder'
         super(Autoencoder, self).__init__()
-        self.encoder = Encoder3()
-        self.decoder = Decoder3()
+        self.encoder = ResidualEncoder()
+        self.decoder = ResidualDecoder()
 
     def forward(self, x):
         'pass through encoder and decoder'
@@ -165,9 +167,9 @@ def test(model, device, test_loader, folder, epoch):
 def main():
     batch_size = 64
     test_batch_size = 100
-    epochs = 20
+    epochs = 10
     save_model = True
-    folder = 'convolutional_cifar_deeper'
+    folder = 'residual_cifar'
 
     if not os.path.exists(folder):
         os.makedirs(folder)
