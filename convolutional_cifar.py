@@ -238,8 +238,8 @@ class Autoencoder2(nn.Module):
     def __init__(self):
         'define encoder and decoder'
         super(Autoencoder2, self).__init__()
-        self.encoder = Encoder2()
-        self.decoder = Decoder2()
+        self.encoder = Encoder()
+        self.decoder = Decoder()
 
     def forward(self, x):
         'pass through encoder and decoder'

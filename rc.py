@@ -22,16 +22,14 @@ class BasicBlock(torch.nn.Module):
         'residual basic block'
         super(BasicBlock, self).__init__()
         self.residual = torch.nn.Sequential(
-            torch.nn.Conv2d(filters, filters, 3, 1, padding=1),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm2d(filters),
             torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
+            torch.nn.BatchNorm2d(filters),
             torch.nn.ReLU(),
+            torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
             torch.nn.BatchNorm2d(filters)
         )
 
     def forward(self, x):
-        'output = residual + skip'
         return x + self.residual(x)
 
 
@@ -48,24 +46,6 @@ class ELU_BatchNorm2d(torch.nn.Module):
         return self.actnorm(x)
 
 
-class BiggerBlock(torch.nn.Module):
-
-    def __init__(self, filters=64):
-        super(BiggerBlock, self).__init__()
-        self.block = torch.nn.Sequential(
-            BasicBlock(filters),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm2d(filters),
-            BasicBlock(filters),
-            torch.nn.ReLU(),
-            torch.nn.BatchNorm2d(filters)
-        )
-
-    def forward(self, x):
-        return x + self.block(x)
-
-
-
 class ResidualEncoder(torch.nn.Module):
 
     def __init__(self):
@@ -74,27 +54,27 @@ class ResidualEncoder(torch.nn.Module):
         self.activate = torch.nn.ELU()
 
         self.encoder = torch.nn.Sequential(
-            torch.nn.Conv2d(3, 16, 3, 1, padding=1, bias=False),
+            torch.nn.Conv2d(3, 16, 3, 1, padding=1),
             self.activate,
-            BiggerBlock(16),
-            ELU_BatchNorm2d(16),
 
+            BasicBlock(16),
+            ELU_BatchNorm2d(16),
             torch.nn.Conv2d(16, 32, 3, 2),
             self.activate,
-            BiggerBlock(32),
-            ELU_BatchNorm2d(32),
 
+            BasicBlock(32),
+            ELU_BatchNorm2d(32),
             torch.nn.Conv2d(32, 64, 3, 2),
             self.activate,
-            BiggerBlock(64),
-            ELU_BatchNorm2d(64),
 
+            BasicBlock(64),
+            ELU_BatchNorm2d(64),
             torch.nn.Conv2d(64, 128, 3, 2),
             self.activate,
-            BiggerBlock(128),
-            ELU_BatchNorm2d(128),
 
-            torch.nn.Conv2d(128, 256, 3, 2, bias=False),
+            BasicBlock(128),
+            ELU_BatchNorm2d(128),
+            torch.nn.Conv2d(128, 256, 3, 2, bias=False)
         )
 
     def forward(self, x):
@@ -109,26 +89,25 @@ class ResidualDecoder(torch.nn.Module):
         self.activate = torch.nn.ELU()
 
         self.decoder = torch.nn.Sequential(
-            torch.nn.BatchNorm2d(256),
             torch.nn.ConvTranspose2d(256, 128, 3, 2),
-
             ELU_BatchNorm2d(128),
-            BiggerBlock(128),
+            BasicBlock(128),
+
             self.activate,
             torch.nn.ConvTranspose2d(128, 64, 3, 2),
-
             ELU_BatchNorm2d(64),
-            BiggerBlock(64),
+            BasicBlock(64),
+
             self.activate,
             torch.nn.ConvTranspose2d(64, 32, 3, 2),
-
             ELU_BatchNorm2d(32),
-            BiggerBlock(32),
+            BasicBlock(32),
+
             self.activate,
             torch.nn.ConvTranspose2d(32, 16, 3, 2, output_padding=1),
-
             ELU_BatchNorm2d(16),
-            BiggerBlock(16),
+            BasicBlock(16),
+
             self.activate,
             torch.nn.Conv2d(16, 3, 3, 1, padding=1),
 
@@ -139,82 +118,9 @@ class ResidualDecoder(torch.nn.Module):
         return self.decoder(x)
 
 
-
-class ResidualEncoderOld(torch.nn.Module):
-
-    def __init__(self, bottleneck):
-        'define four layers'
-        super(ResidualEncoderOld, self).__init__()
-        self.activate = torch.nn.ELU()
-
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Conv2d(3, 64, 3, 1, padding=1, bias=False),
-            ELU_BatchNorm2d(64),
-
-            BasicBlock(64),
-            ELU_BatchNorm2d(64),
-            torch.nn.Conv2d(64, 128, 3, 2),
-            self.activate,
-
-            BasicBlock(128),
-            ELU_BatchNorm2d(128),
-            torch.nn.Conv2d(128, 256, 3, 2),
-            self.activate,
-
-            BasicBlock(256),
-            ELU_BatchNorm2d(256),
-            torch.nn.Conv2d(256, 512, 3, 2),
-            self.activate,
-
-            BasicBlock(512),
-            ELU_BatchNorm2d(512),
-            torch.nn.Conv2d(512, bottleneck, 3, 2, bias=False),
-        )
-
-    def forward(self, x):
-        return self.encoder(x)
-
-
-class ResidualDecoderOld(torch.nn.Module):
-
-    def __init__(self, bottleneck):
-        'define four layers'
-        super(ResidualDecoderOld, self).__init__()
-        self.activate = torch.nn.ELU()
-
-        self.decoder = torch.nn.Sequential(
-            torch.nn.BatchNorm2d(bottleneck),
-            torch.nn.ConvTranspose2d(bottleneck, 512, 3, 2),
-            ELU_BatchNorm2d(512),
-            BasicBlock(512),
-            self.activate,
-
-            torch.nn.ConvTranspose2d(512, 256, 3, 2),
-            ELU_BatchNorm2d(256),
-            BasicBlock(256),
-            self.activate,
-
-            torch.nn.ConvTranspose2d(256, 128, 3, 2),
-            ELU_BatchNorm2d(128),
-            BasicBlock(128),
-            self.activate,
-
-            torch.nn.ConvTranspose2d(128, 64, 3, 2, output_padding=1),
-            ELU_BatchNorm2d(64),
-            BasicBlock(64),
-            self.activate,
-
-            torch.nn.Conv2d(64, 3, 3, 1, padding=1),
-            torch.nn.Tanh()
-        )
-
-    def forward(self, x):
-        return self.decoder(x)
-
-
 class Autoencoder(nn.Module):
 
-    def __init__(self, bottleneck):
+    def __init__(self):
         'define encoder and decoder'
         super(Autoencoder, self).__init__()
         self.encoder = ResidualEncoder()
@@ -261,19 +167,19 @@ def test(model, device, test_loader, folder, epoch):
 
 
 
-def main(bottleneck):
-    batch_size = 128
+def main():
+    batch_size = 64
     test_batch_size = 100
-    epochs = 20
+    epochs = 10
     save_model = True
-    folder = f'residual_cifar_{bottleneck}_bottle'
+    folder = 'residual_cifar_test'
 
     if not os.path.exists(folder):
         os.makedirs(folder)
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
-    model = Autoencoder(bottleneck).to(device)
+    model = Autoencoder().to(device)
     optimizer = optim.Adam(model.parameters())
 
     path = 'data'
@@ -289,6 +195,4 @@ def main(bottleneck):
 
 
 if __name__ == '__main__':
-    for b in ([1024]):
-        print(f'now doing bottleneck for: {b}')
-        main(b)
+    main()
