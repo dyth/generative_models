@@ -18,18 +18,18 @@ torch.manual_seed(9001)
 
 class ConditionalBatchNorm2d(torch.nn.Module):
 
-    def __init__(self, num_features, num_classes):
-        super().__init__()
-        self.num_features = num_features
-        self.bn = nn.BatchNorm2d(num_features, affine=False)
-        self.embed = nn.Embedding(num_classes, num_features * 2)
-        self.embed.weight.data[:, :num_features].normal_(1, 0.02)  # Initialise scale at N(1, 0.02)
-        self.embed.weight.data[:, num_features:].zero_()  # Initialise bias at 0
+    def __init__(self, features, classes):
+        super(ConditionalBatchNorm2d, self).__init__()
+        self.features = features
+        self.bn = torch.nn.BatchNorm2d(features, affine=False)
+        self.embed = torch.nn.Embedding(classes, features * 2)
+        self.embed.weight.data[:, :features].uniform_(0, 1)  # weights between 0 and 1
+        self.embed.weight.data[:, features:].zero_()  # bias at 0
 
     def forward(self, x, y):
         out = self.bn(x)
         gamma, beta = self.embed(y).chunk(2, 1)
-        out = gamma.view(-1, self.num_features, 1, 1) * out + beta.view(-1, self.num_features, 1, 1)
+        out = gamma.view(-1, self.features, 1, 1) * out + beta.view(-1, self.features, 1, 1)
         return out
 
 
@@ -39,35 +39,39 @@ class BasicBlock(torch.nn.Module):
         'residual basic block'
         super(BasicBlock, self).__init__()
         self.conv1 = torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False)
-        self.bn1 = torch.nn.ModuleList([torch.nn.BatchNorm2d(filters, affine=True) for _ in range(10)])
+        self.bn1 = ConditionalBatchNorm2d(filters, 10)
         self.conv2 = torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False)
-        self.bn2 = torch.nn.ModuleList([torch.nn.BatchNorm2d(filters, affine=True) for _ in range(10)])
+        self.bn2 = ConditionalBatchNorm2d(filters, 10)
 
-    def conditional_forward(self, i, x):
+    def conditional_forward(self, x, y):
         out = self.conv1(x)
-        out = self.bn1[i](out)
+        out = self.bn1(out, y)
         out = F.relu(out)
         out = self.conv2(out)
-        out = self.bn2[i](out)
+        out = self.bn2(out, y)
         return x + out
 
     def forward(self, x):
-        return self.conditional_forward(0, x)
+        batch_size = list(x.size())[0]
+        y = torch.zeros(batch_size).to(x).long()
+        return self.conditional_forward(x, y)
 
 
 class ELU_BatchNorm2d(torch.nn.Module):
 
     def __init__(self, filters=64):
         super(ELU_BatchNorm2d, self).__init__()
-        self.bn = torch.nn.ModuleList([torch.nn.BatchNorm2d(filters, affine=True) for _ in range(10)])
+        self.bn = ConditionalBatchNorm2d(filters, 10)
 
-    def conditional_forward(self, i, x):
+    def conditional_forward(self, x, y):
         x = F.elu(x)
-        x = self.bn[i](x)
+        x = self.bn(x, y)
         return x
 
     def forward(self, x):
-        return self.conditional_forward(0, x)
+        batch_size = list(x.size())[0]
+        y = torch.zeros(batch_size).to(x).long()
+        return self.conditional_forward(x, y)
 
 
 class ResidualEncoder(torch.nn.Module):
@@ -77,32 +81,52 @@ class ResidualEncoder(torch.nn.Module):
         super(ResidualEncoder, self).__init__()
         self.activate = torch.nn.ELU()
 
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Conv2d(3, filters[0], 3, 1, padding=1),
-            self.activate,
+        self.conv5 = torch.nn.Conv2d(3, filters[0], 3, 1, padding=1)
 
-            BasicBlock(filters[0]),
-            ELU_BatchNorm2d(filters[0]),
-            torch.nn.Conv2d(filters[0], filters[1], 3, 2),
-            self.activate,
+        self.block4 = BasicBlock(filters[0])
+        self.eb4 = ELU_BatchNorm2d(filters[0])
+        self.conv4 = torch.nn.Conv2d(filters[0], filters[1], 3, 2)
 
-            BasicBlock(filters[1]),
-            ELU_BatchNorm2d(filters[1]),
-            torch.nn.Conv2d(filters[1], filters[2], 3, 2),
-            self.activate,
+        self.block3 = BasicBlock(filters[1])
+        self.eb3 = ELU_BatchNorm2d(filters[1])
+        self.conv3 = torch.nn.Conv2d(filters[1], filters[2], 3, 2)
 
-            BasicBlock(filters[2]),
-            ELU_BatchNorm2d(filters[2]),
-            torch.nn.Conv2d(filters[2], filters[3], 3, 2),
-            self.activate,
+        self.block2 = BasicBlock(filters[2])
+        self.eb2 = ELU_BatchNorm2d(filters[2])
+        self.conv2 = torch.nn.Conv2d(filters[2], filters[3], 3, 2)
 
-            BasicBlock(filters[3]),
-            ELU_BatchNorm2d(filters[3]),
-            torch.nn.Conv2d(filters[3], filters[4], 3, 2, bias=False)
-        )
+        self.block1 = BasicBlock(filters[3])
+        self.eb1 = ELU_BatchNorm2d(filters[3])
+        self.conv1 = torch.nn.Conv2d(filters[3], filters[4], 3, 2, bias=False)
+
+    def conditional_forward(self, x, y):
+        x = self.conv5(x)
+        x = self.activate(x)
+
+        x = self.block4.conditional_forward(x, y)
+        x = self.eb4.conditional_forward(x, y)
+        x = self.conv4(x)
+        x = self.activate(x)
+
+        x = self.block3.conditional_forward(x, y)
+        x = self.eb3.conditional_forward(x, y)
+        x = self.conv3(x)
+        x = self.activate(x)
+
+        x = self.block2.conditional_forward(x, y)
+        x = self.eb2.conditional_forward(x, y)
+        x = self.conv2(x)
+        x = self.activate(x)
+
+        x = self.block1.conditional_forward(x, y)
+        x = self.eb1.conditional_forward(x, y)
+        x = self.conv1(x)
+        return x
 
     def forward(self, x):
-        return self.encoder(x)
+        batch_size = list(x.size())[0]
+        y = torch.zeros(batch_size).to(x).long()
+        return self.conditional_forward(x, y)
 
 
 class ResidualDecoder(torch.nn.Module):
@@ -132,33 +156,36 @@ class ResidualDecoder(torch.nn.Module):
 
         self.out = torch.nn.Tanh()
 
-    def conditional_forward(self, i, x):
+    def conditional_forward(self, x, y):
         x = self.conv1(x)
-        x = self.eb1.conditional_forward(i, x)
-        x = self.block1.conditional_forward(i, x)
+        x = self.eb1.conditional_forward(x, y)
+        x = self.block1.conditional_forward(x, y)
 
         x = self.activate(x)
         x = self.conv2(x)
-        x = self.eb2.conditional_forward(i, x)
-        x = self.block2.conditional_forward(i, x)
+        x = self.eb2.conditional_forward(x, y)
+        x = self.block2.conditional_forward(x, y)
 
         x = self.activate(x)
         x = self.conv3(x)
-        x = self.eb3.conditional_forward(i, x)
-        x = self.block3.conditional_forward(i, x)
+        x = self.eb3.conditional_forward(x, y)
+        x = self.block3.conditional_forward(x, y)
 
         x = self.activate(x)
         x = self.conv4(x)
-        x = self.eb4.conditional_forward(i, x)
-        x = self.block4.conditional_forward(i, x)
+        x = self.eb4.conditional_forward(x, y)
+        x = self.block4.conditional_forward(x, y)
 
         x = self.activate(x)
         x = self.conv5(x)
+
         x = self.out(x)
         return x
 
     def forward(self, x):
-        return self.conditional_forward(0, x)
+        batch_size = list(x.size())[0]
+        y = torch.zeros(batch_size).to(x).long()
+        return self.conditional_forward(x, y)
 
 
 class Autoencoder(nn.Module):
@@ -167,20 +194,23 @@ class Autoencoder(nn.Module):
         'define encoder and decoder'
         super(Autoencoder, self).__init__()
         filters = [16, 32, 64, 128, 256]
-        # filters = [64, 256, 256, 256, 256]
-        # filters = [32, 64, 128, 256, 512]
+        filters = [64, 128, 128, 256, 256]
+        filters = [32, 64, 128, 256, 512]
+        filters = [64, 128, 256, 512, 1024]
         self.encoder = ResidualEncoder(filters)
         self.decoder = ResidualDecoder(filters)
 
-    def conditional_forward(self, i, x):
+    def conditional_forward(self, x, y):
         'conditional forward pass through encoder and decoder'
-        x = self.encoder(x)
-        x = self.decoder.conditional_forward(i, x)
+        x = self.encoder(x)#.conditional_forward(x, y)
+        x = self.decoder.conditional_forward(x, y)
         return x
 
     def forward(self, x):
         'pass through encoder and decoder'
-        return self.conditional_forward(0, x)
+        batch_size = list(x.size())[0]
+        y = torch.zeros(batch_size).to(x).long()
+        return self.conditional_forward(x, y)
 
 
 
@@ -189,9 +219,10 @@ def train(model, device, train_loader, optimizer, epoch):
     model.train()
     train_loss = 0
     for i, (data, labels) in progress:
-        data = data.to(device)
+        data, labels = data.to(device), labels.to(device)
         optimizer.zero_grad()
-        output = model.conditional_forward(labels, data)
+        # output = model(data)
+        output = model.conditional_forward(data, labels)
         loss = F.mse_loss(output, data)
         loss.backward()
         optimizer.step()
@@ -205,8 +236,9 @@ def test(model, device, test_loader, folder, epoch):
     test_loss = 0
     with torch.no_grad():
         for i, (data, labels) in progress:
-            data = data.to(device)
-            output = model.conditional_forward(labels, data)
+            data, labels = data.to(device), labels.to(device)
+            # output = model(data)
+            output = model.conditional_forward(data, labels)
             test_loss += F.mse_loss(output, data)
             progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
             if i == 0:
