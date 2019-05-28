@@ -10,7 +10,6 @@ import os
 from tqdm.autonotebook import tqdm
 from torchvision.utils import save_image
 
-import parts
 from dataloaders import *
 
 torch.manual_seed(9001)
@@ -172,7 +171,7 @@ def main():
     test_batch_size = 100
     epochs = 10
     save_model = True
-    folder = 'residual_cifar_test'
+    folder = 'residual_cifar'
 
     if not os.path.exists(folder):
         os.makedirs(folder)
