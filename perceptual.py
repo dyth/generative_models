@@ -28,25 +28,20 @@ class PerceptualLoss(nn.Module):
             self.fc2 = nn.Linear(96, 32)
             self.to(device)
 
+    def forward_list(self, x):
+        x1 = F.relu(self.conv1(x))
+        x2 = F.relu(self.conv2(x1))
+        x2 = x2.view(-1, 256)
+        x3 = F.relu(self.fc1(x2))
+        x4 = F.relu(self.fc2(x3))
+        x = [x, x1, x2, x3, x4]
+        return x
+
     def compute(self, output, target):
         'compare activations at each layer'
-        output1 = F.relu(self.conv1(output))
-        output2 = F.relu(self.conv2(output1))
-        output2 = output2.view(-1, 256)
-        output3 = F.relu(self.fc1(output2))
-        output4 = F.relu(self.fc2(output3))
-
-        target1 = F.relu(self.conv1(target))
-        target2 = F.relu(self.conv2(target1))
-        target2 = target2.view(-1, 256)
-        target3 = F.relu(self.fc1(target2))
-        target4 = F.relu(self.fc2(target3))
-
-        loss = F.mse_loss(output, target)
-        loss += F.mse_loss(output1, target1)
-        loss += F.mse_loss(output2, target2)
-        loss += F.mse_loss(output3, target3)
-        loss += F.mse_loss(output4, target4)
+        output = self.forward_list(output)
+        target = self.forward_list(target)
+        loss = sum([F.mse_loss(o, t) for o, t in zip(output, target)])
         return loss
 
 
