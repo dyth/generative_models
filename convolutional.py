@@ -99,7 +99,7 @@ def test(model, device, test_loader, folder, epoch):
                 output = output.view(100, 1, 28, 28)
                 data = data.view(100, 1, 28, 28)
                 save_image(output.cpu(), f'{folder}/{epoch}.png', nrow=10)
-                save_image(data.cpu(), f'{folder}/baseline{epoch}.png', nrow=10)
+                save_image(data.cpu(), f'{folder}/{epoch}baseline.png', nrow=10)
 
 
 
