@@ -39,7 +39,7 @@ def traverse_sigmoidal_latent_space(model, batch, device):
         traverse = []
         for i in range(32):
             t = copy.deepcopy(latent)
-            t[i] = j * 2 / 9 - 1
+            t[i] = j / 9
             traverse.append(t)
         traverse = torch.stack(traverse)
         traverse = traverse.to(device)
