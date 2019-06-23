@@ -51,7 +51,7 @@ def traverse_sigmoidal_latent_space(model, batch, device):
 def latent_traversal(test_loader, model, device, folder, i):
     'traverse all 32 axes of the latent representation to produce an image'
     # get batch
-    for batch, labels in test_loader:
+    for batch, _ in test_loader:
         break
     # traverse latent space and save image
     traversed = traverse_sigmoidal_latent_space(model, batch, device)

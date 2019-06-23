@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-train a convolutional encoder and decoder
+train a residual encoder and decoder
 """
 import torch
 import torch.nn as nn
@@ -32,84 +32,66 @@ class BasicBlock(torch.nn.Module):
         return x + self.residual(x)
 
 
-class ELU_BatchNorm2d(torch.nn.Module):
+class Encoder(nn.Module):
 
-    def __init__(self, filters=64):
-        super(ELU_BatchNorm2d, self).__init__()
-        self.actnorm = torch.nn.Sequential(
-            torch.nn.ELU(),
-            torch.nn.BatchNorm2d(filters)
+    def __init__(self, filters):
+        'define four layers'
+        super(Encoder, self).__init__()
+        self.filters = filters
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, filters[0], 3, 1, padding=1),
+
+            nn.BatchNorm2d(filters[0]),
+            BasicBlock(filters[0]),
+            nn.Conv2d(filters[0], filters[1], 4, 2),
+
+            nn.BatchNorm2d(filters[1]),
+            BasicBlock(filters[1]),
+            nn.Conv2d(filters[1], filters[2], 4, 2),
+
+            nn.BatchNorm2d(filters[2]),
+            BasicBlock(filters[2]),
+            nn.Conv2d(filters[2], filters[3], 4, 2, bias=False)
         )
 
     def forward(self, x):
-        return self.actnorm(x)
-
-
-
-class Encoder(nn.Module):
-
-    def __init__(self):
-        'define four layers'
-        super(Encoder, self).__init__()
-        # self.encoder = torch.nn.Sequential(
-        self.conv1 = nn.Conv2d(1, 2, 3, 1, padding=1)
-        self.conv2 = BasicBlock(2)
-        # self.conv2 = nn.Conv2d(2, 2, 3, 1, padding=1)
-        self.conv3 = nn.Conv2d(2, 4, 4, 2)
-        self.conv4 = BasicBlock(4)
-        # self.conv4 = nn.Conv2d(4, 4, 3, 1, padding=1)
-        self.conv5 = nn.Conv2d(4, 8, 4, 2)
-        self.conv6 = BasicBlock(8)
-        # self.conv6 = nn.Conv2d(8, 8, 3, 1, padding=1)
-        self.conv7 = nn.Conv2d(8, 16, 4, 2, bias=False)
-
-    def forward(self, x):
-        'convolution'
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
-        x = F.relu(self.conv5(x))
-        x = F.relu(self.conv6(x))
-        x = self.conv7(x)
-        return x
+        return self.encoder(x)
 
 
 class Decoder(nn.Module):
 
-    def __init__(self):
+    def __init__(self, filters):
         'define four layers'
         super(Decoder, self).__init__()
-        self.conv1 = nn.ConvTranspose2d(16, 8, 4, 2, output_padding=1)
-        self.conv2 = BasicBlock(8)
-        # self.conv2 = nn.Conv2d(8, 8, 3, 1, padding=1)
-        self.conv3 = nn.ConvTranspose2d(8, 4, 4, 2, output_padding=1)
-        self.conv4 = BasicBlock(4)
-        # self.conv4 = nn.Conv2d(4, 4, 3, 1, padding=1)
-        self.conv5 = nn.ConvTranspose2d(4, 2, 4, 2)
-        self.conv6 = BasicBlock(2)
-        # self.conv6 = nn.Conv2d(2, 2, 3, 1, padding=1)
-        self.conv7 = nn.Conv2d(2, 1, 3, 1, padding=1)
+        self.filters = filters
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(filters[3], filters[2], 4, 2, output_padding=1),
+            BasicBlock(filters[2]),
+            nn.BatchNorm2d(filters[2]),
+
+            nn.ConvTranspose2d(filters[2], filters[1], 4, 2, output_padding=1),
+            BasicBlock(filters[1]),
+            nn.BatchNorm2d(filters[1]),
+
+            nn.ConvTranspose2d(filters[1], filters[0], 4, 2),
+            BasicBlock(filters[0]),
+            nn.BatchNorm2d(filters[0]),
+
+            nn.Conv2d(filters[0], 1, 3, 1, padding=1),
+            nn.Sigmoid()
+        )
 
     def forward(self, x):
-        'deconvolution'
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
-        x = F.relu(self.conv5(x))
-        x = F.relu(self.conv6(x))
-        x = torch.sigmoid(self.conv7(x))
-        return x
+        return self.decoder(x)
 
 
 class Autoencoder(nn.Module):
 
-    def __init__(self):
+    def __init__(self, filters):
         'define encoder and decoder'
         super(Autoencoder, self).__init__()
-        self.encoder = Encoder()
-        self.decoder = Decoder()
+        self.encoder = Encoder(filters)
+        self.decoder = Decoder(filters)
 
     def forward(self, x):
         'pass through encoder and decoder'
@@ -164,7 +146,8 @@ def main():
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
-    model = Autoencoder().to(device)
+    filters = [4, 8, 16, 32]
+    model = Autoencoder(filters).to(device)
     optimizer = optim.Adam(model.parameters())
 
     path = 'data'
