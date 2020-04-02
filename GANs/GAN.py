@@ -8,6 +8,7 @@ from torch.autograd import Variable
 from torchvision.utils import save_image
 import os
 import argparse
+import time
 
 from dataloaders import get_mnist
 
@@ -79,8 +80,6 @@ def train_one_batch(x, G, D, loss, G_opt, D_opt):
     D.zero_grad()
     # D_fake_loss = loss(D(G(z)), fake_labels)
     fake_loss = loss(D(fake_data.detach()), fake_labels)
-    # print(real_data.shape)
-    # print(real_labels.shape)
     real_loss = loss(D(real_data), real_labels)
     d_loss = real_loss + fake_loss
     d_loss.backward()
@@ -89,6 +88,7 @@ def train_one_batch(x, G, D, loss, G_opt, D_opt):
 
 
 def train_one_epoch(epoch, dataloader, G, D, loss, G_opt, D_opt):
+    start = time.time()
     g_losses, d_losses = [], []
     for i, (x, _) in enumerate(dataloader):
         g_loss, d_loss, fake_data = train_one_batch(x, G, D, loss, G_opt, D_opt)
@@ -97,10 +97,12 @@ def train_one_epoch(epoch, dataloader, G, D, loss, G_opt, D_opt):
         if i == 0:
             name = f'{args.folder}/{epoch}.png'
             save_image(fake_data.view(fake_data.size(0), 1, 28, 28), name)
-    print('[%d/%d]: D loss: %.3f, G loss: %.3f' % (
-        epoch, args.n_epochs,
-        torch.mean(torch.FloatTensor(d_losses)),
-        torch.mean(torch.FloatTensor(g_losses)))
+    end = time.time()
+    print(
+        f'[{epoch}/{args.n_epochs}] '\
+        f'{end - start:.3f}s: '\
+        f'D loss {torch.mean(torch.FloatTensor(d_losses)):.3f}, '\
+        f'G loss {torch.mean(torch.FloatTensor(g_losses)):.3f}'
     )
 
 
