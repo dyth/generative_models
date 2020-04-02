@@ -62,117 +62,37 @@ D = Discriminator(mnist_dim).to(device)
 criterion = nn.BCELoss()
 
 # optimizer
-lr = 0.0002
+lr = 0.0001
 G_optimizer = optim.Adam(G.parameters(), lr=lr)
 D_optimizer = optim.Adam(D.parameters(), lr=lr)
-
-
-# def D_train(x):
-#     'train the discriminator'
-#     D.zero_grad()
-#
-#     # discriminator loss on real data
-#     x_real = x.view(-1, mnist_dim).to(device)
-#     output = D(x_real)
-#     y_real = torch.ones(batch_size, 1).to(device)
-#     D_real_loss = criterion(output, y_real)
-#
-#     # discriminator loss on fake data
-#     # randn outputs values sampled from N(0, 1)
-#     z = torch.randn(batch_size, z_dim).to(device)
-#     output = D(G(z))
-#     y_fake = torch.zeros(batch_size, 1).to(device)
-#     D_fake_loss = criterion(output, y_fake)
-#
-#     # only backprop through discriminator parameters
-#     D_loss = D_real_loss + D_fake_loss
-#     D_loss.backward()
-#     D_optimizer.step()
-#     return D_loss.data.item()
-#
-#
-# def G_train(x):
-#     'train the generator'
-#     G.zero_grad()
-#
-#     z = torch.randn(batch_size, z_dim).to(device)
-#     output = D(G(z))
-#     y = torch.ones(batch_size, 1).to(device)
-#     G_loss = criterion(output, y)
-#
-#     # only backprop through generator parameters
-#     G_loss.backward()
-#     G_optimizer.step()
-#     return G_loss.data.item()
-#
-#
-# n_epoch = 100
-# for epoch in range(1, n_epoch+1):
-#     D_losses, G_losses = [], []
-#     for batch_idx, (x, _) in enumerate(train_loader):
-#         D_losses.append(D_train(x))
-#         G_losses.append(G_train(x))
-#     print('[%d/%d]: D loss: %.3f, G loss: %.3f' % (
-#         epoch, n_epoch,
-#         torch.mean(torch.FloatTensor(D_losses)),
-#         torch.mean(torch.FloatTensor(G_losses)))
-#     )
-
-
-
-# def train(x):
-#     'train the generator and discriminator for batch x'
-#     # generate data and labels for a batch
-#     fake_labels = torch.zeros(batch_size, 1).to(device)
-#     real_labels = torch.ones(batch_size, 1).to(device)
-#     G_optimizer.zero_grad()
-#     z = torch.randn(batch_size, z_dim).to(device)
-#     fake_data = G(z)
-#     real_data = x.view(-1, mnist_dim).to(device)
-#
-#     # train the generator parameters only
-#     G_loss = criterion(D(fake_data), real_labels)
-#     G_loss.backward()
-#     G_optimizer.step()
-#
-#     # train the discriminator parameters only
-#     D_optimizer.zero_grad()
-#     D_real_loss = criterion(D(real_data), real_labels)
-#     D_fake_loss = criterion(D(fake_data.detach()), fake_labels)
-#     D_loss = D_real_loss + D_fake_loss
-#     D_loss.backward()
-#     D_optimizer.step()
-#     return G_loss.data.item(), D_loss.data.item()
-
 
 
 def train(x):
     y_real = torch.ones(batch_size, 1).to(device)
     y_fake = torch.zeros(batch_size, 1).to(device)
     x_real = x.view(-1, mnist_dim).to(device)
+    # sample from N(0, 1)
+    z = torch.randn(batch_size, z_dim).to(device)
+
+    # train the generator
+    G.zero_grad()
+    x_fake = G(z)
+    G_loss = criterion(D(x_fake), y_real)
+    G_loss.backward()
+    G_optimizer.step()
 
     # train the discriminator
     D.zero_grad()
-    # randn outputs values sampled from N(0, 1)
-    z = torch.randn(batch_size, z_dim).to(device)
-    D_fake_loss = criterion(D(G(z)), y_fake)
+    # D_fake_loss = criterion(D(G(z)), y_fake)
+    D_fake_loss = criterion(D(x_fake.detach()), y_fake)
     D_real_loss = criterion(D(x_real), y_real)
     D_loss = D_real_loss + D_fake_loss
     D_loss.backward()
     D_optimizer.step()
-
-    # train the generator
-    G.zero_grad()
-    z = torch.randn(batch_size, z_dim).to(device)
-    G_loss = criterion(D(G(z)), y_real)
-    G_loss.backward()
-    G_optimizer.step()
     return G_loss.data.item(), D_loss.data.item()
 
 
-
-
-n_epoch = 10
+n_epoch = 100
 for epoch in range(1, n_epoch+1):
     D_losses, G_losses = [], []
     for batch_idx, (x, _) in enumerate(train_loader):
