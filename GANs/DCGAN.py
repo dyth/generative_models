@@ -14,11 +14,11 @@ from dataloaders import get_mnist
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=200)
+parser.add_argument("--n_epochs", type=int, default=30)
 parser.add_argument("--batch_size", type=int, default=100)
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--latent_dim", type=int, default=100)
-parser.add_argument("--folder", default='dcgan')
+parser.add_argument("--folder", default='dcgan2')
 args = parser.parse_args()
 print(args)
 
