@@ -9,6 +9,7 @@ from torchvision.utils import save_image
 import os
 import argparse
 import time
+from datetime import datetime
 
 from dataloaders import get_mnist
 
@@ -18,15 +19,27 @@ parser.add_argument("--n_epochs", type=int, default=200)
 parser.add_argument("--batch_size", type=int, default=100)
 parser.add_argument("--lr", type=float, default=0.0001)
 parser.add_argument("--latent_dim", type=int, default=100)
-parser.add_argument("--folder", default='gan')
+parser.add_argument("--train_original", action='store_true')
+parser.add_argument("--folder", default=None)
 args = parser.parse_args()
-print(args)
+
+# create folder of all arguments
+params = vars(args)
+default_folder = ''
+for p in params:
+    if p != 'folder':
+        print(f'{p}: {params[p]}')
+        default_folder += f'{p}-{params[p]}_'
+default_folder += datetime.now().strftime("%y-%m-%d-%H-%M-%S")
+args.folder = args.folder if args.folder else default_folder
+print('')
+print(args.folder)
+if not os.path.exists(args.folder):
+    os.makedirs(args.folder)
 
 use_cuda = torch.cuda.is_available()
 device = torch.device('cuda' if use_cuda else 'cpu')
 
-if not os.path.exists(args.folder):
-    os.makedirs(args.folder)
 
 
 class Generator(nn.Module):
@@ -62,7 +75,8 @@ class Discriminator(nn.Module):
         return torch.sigmoid(self.fc4(x))
 
 
-def train_one_batch(x, G, D, loss, G_opt, D_opt):
+def train_one_batch_efficient(x, G, D, loss, G_opt, D_opt):
+    'a more efficient way of training a GAN'
     real_labels = torch.ones(x.size(0), 1).to(device)
     fake_labels = torch.zeros(x.size(0), 1).to(device)
     real_data = x.view(-1, 28 * 28).to(device)
@@ -78,7 +92,6 @@ def train_one_batch(x, G, D, loss, G_opt, D_opt):
 
     # train the discriminator
     D.zero_grad()
-    # D_fake_loss = loss(D(G(z)), fake_labels)
     fake_loss = loss(D(fake_data.detach()), fake_labels)
     real_loss = loss(D(real_data), real_labels)
     d_loss = real_loss + fake_loss
@@ -87,10 +100,38 @@ def train_one_batch(x, G, D, loss, G_opt, D_opt):
     return d_loss.data.item(), g_loss.data.item(), fake_data
 
 
+def train_one_batch_orig(x, G, D, loss, G_opt, D_opt):
+    'train one batch of the generator following original GAN paper'
+    real_labels = torch.ones(x.size(0), 1).to(device)
+    fake_labels = torch.zeros(x.size(0), 1).to(device)
+    real_data = x.view(-1, 28 * 28).to(device)
+
+    # train the discriminator
+    D.zero_grad()
+    d_loss = real_loss + fake_loss
+    fake_loss = loss(D(G(z)), fake_labels)
+    real_loss = loss(D(real_data), real_labels)
+    z = torch.randn(x.size(0), args.latent_dim).to(device)
+    d_loss.backward()
+    D_opt.step()
+
+    # train the generator
+    G.zero_grad()
+    z = torch.randn(x.size(0), args.latent_dim).to(device)
+    fake_data = G(z)
+    g_loss = loss(D(fake_data), real_labels)
+    g_loss.backward()
+    G_opt.step()
+    return d_loss.data.item(), g_loss.data.item(), fake_data
+
+
 def train_one_epoch(epoch, dataloader, G, D, loss, G_opt, D_opt):
     start = time.time()
     g_losses, d_losses = [], []
     for i, (x, _) in enumerate(dataloader):
+        train_one_batch = train_one_batch_efficient
+        if args.train_original:
+            train_one_batch = train_one_batch_orig
         g_loss, d_loss, fake_data = train_one_batch(x, G, D, loss, G_opt, D_opt)
         g_losses.append(g_loss)
         d_losses.append(d_loss)
