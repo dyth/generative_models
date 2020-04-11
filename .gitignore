@@ -108,3 +108,5 @@ data/*
 *.pt
 __pycache__*
 *.png
+
+*.json
