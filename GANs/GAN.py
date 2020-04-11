@@ -1,4 +1,4 @@
-# Adapted from https://github.com/lyeoni/pytorch-mnist-GAN/blob/master/pytorch-mnist-GAN.ipynb
+# Adapted from https://github.com/lyeoni/pytorch-mnist-GAN
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

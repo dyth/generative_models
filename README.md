@@ -1,12 +1,21 @@
-# Autoencoders
+# Generative Models
 
-## MNIST
-* feedforward
-* convolutional
-* residual
-* variational autoencoder
-* beta-vae
-* convolutional autoencoder with perceptual loss
+Implementation of famous models for self-study
 
-## CIFAR-10
-* residual
+## Autoencoders
+* feedforward (MNIST)
+* convolutional (MNIST)
+* residual (MNIST)
+* variational (MNIST, CIFAR)
+* beta-variational (MNIST)
+* convolutional with perceptual loss (MNIST)
+
+## GANs
+* GAN (MNIST)
+* DCGAN (MNIST)
+
+## References
+[https://github.com/eriklindernoren/PyTorch-GAN] and
+[https://github.com/lyeoni/pytorch-mnist-GAN] were very helpful in understanding
+how the mathematics of GANs translated to code; as well as providing good
+initial hyperparameters and architectures
