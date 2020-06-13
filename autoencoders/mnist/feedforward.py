@@ -1,18 +1,6 @@
-#!/usr/bin/env python
-"""
-train a feedforward encoder and decoder
-"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-import os
-from tqdm.autonotebook import tqdm
-from torchvision.utils import save_image
-
-from dataloaders import *
-
-torch.manual_seed(9001)
 
 
 class Encoder(nn.Module):
@@ -63,73 +51,7 @@ class Autoencoder(nn.Module):
 
     def forward(self, x):
         'pass through encoder and decoder'
+        x = torch.flatten(x, 1)
         x = self.encoder(x)
         x = self.decoder(x)
         return x
-
-
-
-def train(model, device, train_loader, optimizer, epoch):
-    progress = tqdm(enumerate(train_loader), desc="train", total=len(train_loader))
-    model.train()
-    train_loss = 0
-    for i, (data, _) in progress:
-        data = data.view(data.size(0), -1)
-        data = data.to(device)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = F.binary_cross_entropy(output, data)
-        loss.backward()
-        optimizer.step()
-        train_loss += loss
-        progress.set_description("train loss: {:.4f}".format(train_loss/(i+1)))
-
-
-def test(model, device, test_loader, folder, epoch):
-    progress = tqdm(enumerate(test_loader), desc="test", total=len(test_loader))
-    model.eval()
-    test_loss = 0
-    with torch.no_grad():
-        for i, (data, _) in progress:
-            data = data.view(data.size(0), -1)
-            data = data.to(device)
-            output = model(data)
-            test_loss += F.binary_cross_entropy(output, data)
-            progress.set_description("test loss: {:.4f}".format(test_loss/(i+1)))
-            if i == 0:
-                output = output.view(100, 1, 28, 28)
-                data = data.view(100, 1, 28, 28)
-                save_image(output.cpu(), f'{folder}/{epoch}.png', nrow=10)
-                save_image(data.cpu(), f'{folder}/baseline{epoch}.png', nrow=10)
-
-
-
-def main():
-    batch_size = 64
-    test_batch_size = 100
-    epochs = 10
-    save_model = True
-    folder = 'feedforward'
-
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda" if use_cuda else "cpu")
-    model = Autoencoder().to(device)
-    optimizer = optim.Adam(model.parameters())
-
-    path = 'data'
-    train_loader, test_loader = get_mnist(path, use_cuda, batch_size, test_batch_size)
-
-    for epoch in range(1, epochs + 1):
-        train(model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader, folder, epoch)
-        print("")
-        if save_model:
-            torch.save(model.state_dict(), f"{folder}/{epoch}.pt")
-
-
-
-if __name__ == '__main__':
-    main()

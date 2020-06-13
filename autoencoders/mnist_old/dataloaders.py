@@ -29,19 +29,18 @@ def get_mnist(path, use_cuda, batch_size, test_batch_size):
 
 def get_2d_mnist(path, use_cuda, batch_size, test_batch_size):
     'download into folder data if folder does not exist, then create dataloader'
-    kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 
     t = transforms.Compose([
         transforms.Resize((28, 28)),
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
-        ])
+    ])
+    kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST(path, train=True, download=True, transform=t),
         batch_size=batch_size, shuffle=True, **kwargs
     )
-
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST(path, train=False, download=True, transform=t),
         batch_size=test_batch_size, shuffle=True, **kwargs
