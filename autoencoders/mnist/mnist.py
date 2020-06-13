@@ -9,12 +9,14 @@ from torchvision import datasets, transforms
 from tqdm.autonotebook import tqdm
 from torchvision.utils import save_image
 
-from models import models
+from models import models, losses
 
 
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
 parser.add_argument('--model', default='fnn',
                     help='what model architecture to use')
+parser.add_argument('--loss', default='ae',
+                    help='what loss function to train architecture')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=100, metavar='N',
@@ -27,7 +29,7 @@ parser.add_argument('--save-model', action='store_true', default=False,
                     help='save the current model')
 parser.add_argument('--save-image', action='store_false', default=True,
                     help='save autoencoder images')
-parser.add_argument('--no-tqdm', action='store_false', default=True,
+parser.add_argument('--no-tqdm', action='store_true', default=False,
                     help='use tqdm')
 args = parser.parse_args()
 
@@ -39,17 +41,6 @@ random.seed(args.seed)
 folder = args.model
 if not os.path.exists(folder):
     os.makedirs(folder)
-
-
-def run_one_batch(model, data, optimiser=None):
-    output = model(data)
-    data = data.reshape(output.shape)
-    loss = F.binary_cross_entropy(output, data)
-    if optimiser is not None:
-        optimiser.zero_grad()
-        loss.backward()
-        optimiser.step()
-    return output, loss
 
 
 def run_one_epoch(model, dataloader, name, epoch, optimiser=None):
@@ -67,16 +58,16 @@ def run_one_epoch(model, dataloader, name, epoch, optimiser=None):
             progress = tqdm(progress, total=len(dataloader))
         for i, (data, _) in progress:
             data = data.to(device)
-            output, loss = run_one_batch(model, data, optimiser=optimiser)
+            output, loss = model.run_one_batch(data, optimiser=optimiser)
             total_loss += loss
             if not args.no_tqdm:
                 progress.set_description(f"train loss: {total_loss/(i+1):.4f}")
             if i == 0 and args.save_image and optimiser is None:
                 data = data[:64, ].cpu().view(64, 1, 28, 28)
                 output = output[:64, ].cpu().view(64, 1, 28, 28)
-                format = {'nrow': 8, 'pad_value': 64}
-                save_image(output.cpu(), f'{folder}/recon{epoch}.png', **format)
-                save_image(data.cpu(), f'{folder}/orig{epoch}.png', **format)
+                save = {'nrow': 8, 'pad_value': 64}
+                save_image(output.cpu(), f'{folder}/{epoch}.png', **save)
+                save_image(data.cpu(), f'{folder}/baseline{epoch}.png', **save)
 
     if args.no_tqdm:
         print(f'{name}: Average loss: {total_loss/(i+1) :.4f}')
@@ -101,7 +92,9 @@ def get_data():
 
 def main():
     train_loader, test_loader = get_data()
-    model = models[args.model]().to(device)
+    encoder = models[args.model][0]()
+    decoder = models[args.model][1]()
+    model = losses[args.loss](encoder, decoder).to(device)
     optimiser = optim.Adam(model.parameters())
     for epoch in range(1, args.epochs + 1):
         print(f'\n{epoch}')

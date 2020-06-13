@@ -21,11 +21,11 @@ class BasicBlock(torch.nn.Module):
         'residual basic block'
         super(BasicBlock, self).__init__()
         self.residual = torch.nn.Sequential(
-            torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
-            torch.nn.BatchNorm2d(filters),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
-            torch.nn.BatchNorm2d(filters)
+            nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
+            nn.BatchNorm2d(filters),
+            nn.ReLU(),
+            nn.Conv2d(filters, filters, 3, 1, padding=1, bias=False),
+            nn.BatchNorm2d(filters)
         )
 
     def forward(self, x):
