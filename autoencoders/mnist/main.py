@@ -17,6 +17,8 @@ parser.add_argument('--model', default='fnn',
                     help='what model architecture to use')
 parser.add_argument('--loss', default='ae',
                     help='what loss function to train architecture')
+parser.add_argument('--traverse', action='store_false', default=True,
+                    help='produce and image showing latent traversals')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=100, metavar='N',
@@ -38,7 +40,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 torch.manual_seed(args.seed)
 random.seed(args.seed)
 
-folder = args.model
+folder = f'images/{args.loss}_{args.model}'
 if not os.path.exists(folder):
     os.makedirs(folder)
 
@@ -67,7 +69,7 @@ def run_one_epoch(model, dataloader, name, epoch, optimiser=None):
                 output = output[:64, ].cpu().view(64, 1, 28, 28)
                 save = {'nrow': 8, 'pad_value': 64}
                 save_image(output.cpu(), f'{folder}/{epoch}.png', **save)
-                save_image(data.cpu(), f'{folder}/baseline{epoch}.png', **save)
+                save_image(data.cpu(), f'{folder}/{epoch}baseline.png', **save)
 
     if args.no_tqdm:
         print(f'{name}: Average loss: {total_loss/(i+1) :.4f}')
@@ -95,11 +97,18 @@ def main():
     encoder = models[args.model][0]()
     decoder = models[args.model][1]()
     model = losses[args.loss](encoder, decoder).to(device)
+
+    args.traverse = args.traverse and (args.loss != 'ae')
+
     optimiser = optim.Adam(model.parameters())
     for epoch in range(1, args.epochs + 1):
         print(f'\n{epoch}')
         run_one_epoch(model, train_loader, 'train', epoch, optimiser=optimiser)
         run_one_epoch(model, test_loader, 'test', epoch)
+        if args.traverse:
+            output, width = model.traverse(test_loader)
+            save_image(output.cpu(), f'{folder}/{epoch}traverse.png',
+                nrow=width, pad_value=64)
 
     if args.save_model:
         torch.save(model.state_dict(), f"{folder}/{epoch}.pt")

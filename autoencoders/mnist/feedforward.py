@@ -4,6 +4,9 @@ import torch.nn.functional as F
 
 from autoencoder import Encoder, Decoder
 
+bottleneck = 4
+
+
 class Flatten(nn.Module):
     def forward(self, input):
         return torch.flatten(input, 1)
@@ -12,31 +15,25 @@ class Flatten(nn.Module):
 class FNN_Encoder(Encoder):
 
     def __init__(self):
-        super(FNN_Encoder, self).__init__()
+        super().__init__()
+        self.activate = nn.ELU()
         self.main = nn.Sequential(
             Flatten(),
-            nn.Linear(784, 512),
-            nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.ReLU(),
+            nn.Linear(784, 64),
+            self.activate
         )
-        self.mean = nn.Linear(128, 64)
-        self.logvar = nn.Linear(128, 64)
+        self.mean = nn.Linear(64, bottleneck)
+        self.logvar = nn.Linear(64, bottleneck)
 
 
 class FNN_Decoder(Decoder):
 
     def __init__(self):
-        super(FNN_Decoder, self).__init__()
+        super().__init__()
+        self.activate = nn.ELU()
         self.main = nn.Sequential(
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 256),
-            nn.ReLU(),
-            nn.Linear(256, 512),
-            nn.ReLU(),
-            nn.Linear(512, 784),
+            nn.Linear(bottleneck, 64, bias=False),
+            self.activate,
+            nn.Linear(64, 784),
             nn.Sigmoid()
         )

@@ -36,8 +36,9 @@ class Autoencoder(nn.Module):
 
     def run_one_batch(self, data, optimiser=None):
         output = self(data)
+        datasize = data.size(0)
         data = data.reshape(output.shape)
-        loss = F.binary_cross_entropy(output, data)
+        loss = F.binary_cross_entropy(output, data, reduction='sum') / datasize
         if optimiser is not None:
             optimiser.zero_grad()
             loss.backward()
