@@ -34,7 +34,7 @@ class Autoencoder(nn.Module):
         x = self.decoder(x)
         return x
 
-    def run_one_batch(self, data, optimiser=None):
+    def run_one_batch(self, data, optimiser=None, labels=None):
         output = self(data)
         datasize = data.size(0)
         data = data.reshape(output.shape)

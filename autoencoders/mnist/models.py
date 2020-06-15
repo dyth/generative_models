@@ -4,6 +4,7 @@ from residual import Res_Encoder, Res_Decoder
 
 from autoencoder import Autoencoder
 from variational import VAE
+from factor import Factor_VAE
 
 models = {
     'fnn': [FNN_Encoder, FNN_Decoder],
@@ -13,5 +14,6 @@ models = {
 
 losses = {
     'ae': Autoencoder,
-    'vae': VAE
+    'vae': VAE,
+    'factor': Factor_VAE
 }

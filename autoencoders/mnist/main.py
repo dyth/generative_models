@@ -58,18 +58,18 @@ def run_one_epoch(model, dataloader, name, epoch, optimiser=None):
         progress = enumerate(dataloader)
         if not args.no_tqdm:
             progress = tqdm(progress, total=len(dataloader))
-        for i, (data, _) in progress:
-            data = data.to(device)
-            output, loss = model.run_one_batch(data, optimiser=optimiser)
+        for i, (data, labels) in progress:
+            data, labels = data.to(device), labels.to(device)
+            output, loss = model.run_one_batch(data, optimiser=optimiser, labels=labels)
             total_loss += loss
             if not args.no_tqdm:
-                progress.set_description(f"train loss: {total_loss/(i+1):.4f}")
+                progress.set_description(f"{name} loss: {total_loss/(i+1):.4f}")
             if i == 0 and args.save_image and optimiser is None:
                 data = data[:64, ].cpu().view(64, 1, 28, 28)
                 output = output[:64, ].cpu().view(64, 1, 28, 28)
                 save = {'nrow': 8, 'pad_value': 64}
-                save_image(output.cpu(), f'{folder}/{epoch}.png', **save)
-                save_image(data.cpu(), f'{folder}/{epoch}baseline.png', **save)
+                save_image(data, f'{folder}/{epoch}baseline.png', **save)
+                save_image(output, f'{folder}/{epoch}.png', **save)
 
     if args.no_tqdm:
         print(f'{name}: Average loss: {total_loss/(i+1) :.4f}')

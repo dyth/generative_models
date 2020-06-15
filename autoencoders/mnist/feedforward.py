@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from autoencoder import Encoder, Decoder
 
-bottleneck = 4
+bottleneck = 10
 
 
 class Flatten(nn.Module):
